@@ -1,20 +1,45 @@
-name: Build
+name: Build and Test
 
 on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+
+    runs-on: windows-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Install dependencies
-      run: sudo apt-get install -y qt5-default libcurl4-openssl-dev cmake build-essential
+    - name: Set up Qt
+      uses: jurplel/install-qt-action@v2
+      with:
+        version: '5.15.2'  # Specify the version you need
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64'
+        dir: ${{ runner.temp }}/Qt
+
+    - name: Add Qt to PATH
+      run: echo "${{ runner.temp }}\\Qt\\5.15.2\\msvc2019_64\\bin" >> $GITHUB_PATH
+
+    - name: Set up CMake
+      uses: jwlawson/actions-setup-cmake@v1
+      with:
+        cmake-version: '3.21.1'  # Specify the version you need
+
+    - name: Install libcurl
+      run: |
+        choco install curl
+        refreshenv
 
     - name: Configure CMake
-      run: cmake -B build -S .
+      run: cmake -B build -S . -G "Visual Studio 16 2019" -A x64
 
     - name: Build
-      run: cmake --build build
+      run: cmake --build build --config Release
+
+    - name: Run Tests
+      run: |
+        cd build/Release
+        ctest -V
